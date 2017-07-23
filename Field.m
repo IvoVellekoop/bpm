@@ -127,15 +127,19 @@ classdef Field < SizedArray
             % wavelength: wavelenght of the light
             % unit:     unit for dimensions and wavelength
             %
-            Eout = Field(ones(dimensions), dimensions./subdivs, wavelength, unit); 
+            if (isscalar(subdivs)) %repeat same value if subdivs is a scalar
+                subdivs = ones(1, length(dimensions)) * subdivs;
+            end
+            Eout = Field(ones(subdivs), dimensions./subdivs, wavelength, unit); 
             Eout = Eout / sqrt(power(Eout));
         end
         function test()
             f = 2000; %um
-            E = Field.plane([200, 200], 512, 0.6328, 'um');
+            D = 200; %um
+            E = Field.plane([2*D, 2*D], 512, 0.6328, 'um');
             %E = Field(ones(256,512), 0.2, 0.6328, distance_unit);
             E = lens(E, f); %focus at a distance of 1000 mu
-            E = aperture(E, 'gaussian', 20);
+            E = aperture(E, 'gaussian', D/2);
             figure(1); imagesc(angle(E)); %display phase of the incident light (converging wave)
             tic();
             E3D = propagate(E, ones(1,1,32), 2*f); %propagate to the focus through air in 32 steps
