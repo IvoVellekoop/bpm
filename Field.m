@@ -52,7 +52,7 @@ classdef Field < SizedArray
             %% Setup output array and loop variables
             Nslices = size(n, 3);
             dz = z / Nslices;
-            Eout = SizedArray(zeros(size(obj,1), size(obj,2), Nslices), [obj.pitches, dz], obj.unit(1));
+            Eout = zeros(size(obj,1), size(obj,2), Nslices);
             E = obj;
             
             %% Standard beam propagation loop: 
@@ -69,8 +69,9 @@ classdef Field < SizedArray
                 ky = fE.coordinates(1);
                 kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
                 E = ifft2(fE .* exp(1.0i * dz * kz)); %propagate field and inverse Fourier transform
-                Eout(:, :, s) = E;
+                Eout(:, :, s) = E.data;
             end
+            Eout = SizedArray(Eout, [obj.pitches, dz], obj.unit(1)); 
         end
         function Eout = lens(obj, focal_length)
             %% Applies a lens function to the field

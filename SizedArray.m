@@ -271,23 +271,38 @@ classdef SizedArray
                 end
             end
         end
-        function A = subsasgn(A, S, B)
+        function obj = subsasgn(obj, s, val)
+            % NOTE: this implementation is SLOW since it always copies all
+            % data!
             % implements index assignment operator for SizedArray:
             % a(1:2,:)=b  (where b can be a sizedarray or an ordinary matrix)
-            
+            %
             % we don't want to support arrays of SizedArray objects (because it gets messy and confusing)
             % therefore, we throw an error when one tries to create one.
             % the error is identical to the one you get when trying to
             % assign a matrix to a matrix element
-            if prod(builtin('size', A)) > 1
+            % see: https://nl.mathworks.com/help/matlab/matlab_oop/class-with-modified-indexing.html
+            if prod(builtin('size', obj)) > 1
                 error('In an assignment  A(:) = B, the number of elements in A and B must be the same.');
             end
-            if isa(B, 'SizedArray')
-                d = subsasgn(A.data, S, B.data);
-            else
-                d = subsasgn(A.data, S, B);
+            
+            if isempty(s) && isa(val,'SizedArray')
+%                obj = SizedArray(val.data,val.Description);
+                error('not implemented yet');
             end
-            A = A.with_data(d);
+            
+            switch s(1).type
+              case '.'
+                obj = builtin('subsasgn',obj,s,val);
+              case '()'
+                if isa(val, 'SizedArray')
+                    val = val.data;
+                    % todo: check if picthes and units match when B is also a SizedArray
+                end
+                % Redefine the struct s to make the call: obj.Data(i)
+                snew = substruct('.','data','()',s(1).subs(:));
+                obj = subsasgn(obj,snew,val);
+            end
         end
         function B = squeeze(obj)
             % removes singleton dimensions from the data array (as in
