@@ -64,6 +64,9 @@ classdef Unit < matlab.mixin.CustomDisplay
             %  todo sort units based on power?
             out = '';
             N = length(obj.unit_count)/2;
+            if nargin < 2
+                latex = false;
+            end
             if N > 0
                 for e=1:N
                     unit = deblank(char(typecast(obj.unit_count(e), 'uint8')));

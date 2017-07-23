@@ -11,6 +11,7 @@ classdef SizedArray
         % when true, 'coordinates' returns negative values in the last half of the vector
         % (see coordinates). And 'unit' returns inverse units.
         units %units of x,y,z,etc. coordinates
+        labels %names of the different dimensions (to be used in imagesc). Defaults to y, x, z, t
     end
     
     methods
@@ -63,6 +64,10 @@ classdef SizedArray
                 error('Invalid input for ''units''');
             end     
             obj.units = us;
+            
+            % add default labels (only supports up to 4 dims at the moment)
+            default_labels = {'y', 'x', 'z', 't'};
+            obj.labels = default_labels(1:dims);
         end
         function array = with_data(obj, data)
             %% returns an object with the same properties (pitch, units) as template object 'obj'
@@ -299,6 +304,7 @@ classdef SizedArray
                 % remove pitches and units for singleton dimensions
                 B.pitches = B.pitches(keep);
                 B.units = B.units(keep);
+                B.labels = B.labels(keep);
                 
                 % Make sure we keep the matrix at least 2-D by adding
                 % 1 or 2 trailing singleton dimensions.
@@ -316,21 +322,27 @@ classdef SizedArray
             %subsref
             %subsasgn
         function imagesc(obj, varargin)
-            labels = {['x ', char(obj.unit(2), true)], ['y ', char(obj.unit(1), true)], ['z ', char(obj.unit(3), true)]};
-            labels(size(obj.data)==1) = []; % remove labels for singleton dimensions
-            if length(labels) < 2
-                labels{2} = []; 
-            end
             s = squeeze(obj);
+            lab = s.labels;
+            if length(lab) < 2
+                lab{2} = []; 
+            end
             if isreal(s.data)
                 d = s.data;
             else
                 d = abs(s.data);
             end
-            imagesc(limits(obj,2), limits(obj,1), d, varargin{:});
-            xlabel(labels(1));
-            ylabel(labels(2));
-            axis image;
+            lx = limits(s,2);
+            ly = limits(s,1);
+            imagesc(lx, ly, d, varargin{:});
+            xlabel(lab(2));
+            ylabel(lab(1));
+            aspect_ratio = (lx(2)-lx(1))/(ly(2)-ly(1));
+            %prefer square pixels, but if the aspect ratio is really high,
+            %use rectangular pixels (axis auto).
+            if aspect_ratio < 2 && aspect_ratio > 0.5
+                axis image;
+            end
             colorbar;
         end
     end
