@@ -106,6 +106,19 @@ classdef SizedArray
                 end
             end
         end
+        function Er = real(obj)
+            Er = obj.with_data(real(obj.data));
+        end
+        function Ei = imag(obj)
+            Ei = obj.with_data(imag(obj.data));
+        end
+        function ang = angle(obj)
+            ang = SizedArray(angle(obj.data), obj.pitches, ''); % new unitless array
+        end
+        function a = abs(obj)
+            a = obj.with_data(abs(obj.data));
+        end
+            
         function N = size(obj, varargin)
             % returns size of the data in the SizedArray
             N=size(obj.data,varargin{:});
@@ -207,6 +220,20 @@ classdef SizedArray
                 C = B.with_data(B.data * A);
             end
         end
+        function C = mrdivide(A, B) % A/B
+            if ~isscalar(B) || ~isnumeric(B)
+                error('You can only / divide a sized array by a scalar. Also see ./');
+            end
+            C = rdivide(A, B);
+        end
+        function C = rdivide(A, B) % A/.B
+            if ~isa(B, 'SizedArray') %only A is SizedArray
+                C = A.with_data(A.data ./ B);
+            else
+                error('Element-wise division by a different SizedArray is currently not supported yet. An implementation should first check if the dimensions agree, and calculate the correct unit after division');
+            end
+        end
+        
         function same = same_size(A, B)
             same = isequal(A.pitches, B.pitches) && isequal(size(A), size(B)) && isequal(A.units, B.units) && isequal(A.is_fft, B.is_fft);
         end
@@ -304,6 +331,7 @@ classdef SizedArray
             xlabel(labels(1));
             ylabel(labels(2));
             axis image;
+            colorbar;
         end
     end
     methods (Access = private)

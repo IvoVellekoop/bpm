@@ -20,6 +20,12 @@ classdef Field < SizedArray
             obj.lambda = lambda;
             obj.k0  = 2 * pi / obj.lambda;
         end
+        function P = power(obj)
+            %% Returns the total power in the field, per unit or per unit^2
+            % This function simply integrates |E|.^2 over the full field
+            P = obj.data(:)' * obj.data(:);
+            P = P * prod(obj.pitches); %take into account the surface area of each pixel (dx dy in the integral)
+        end
         function Eout = propagate(obj, n, z)
             %% Propagate the field through refractive index map n
             % Propagates the wave over a total distance z
@@ -108,16 +114,34 @@ classdef Field < SizedArray
         end
     end
     methods (Static)
+        function Eout = plane(dimensions, subdivs, wavelength, unit)
+            %% Generates a plane wave
+            %
+            % The amplitude of the plane wave is normalized to have unit
+            % power per unit. So, regardless of the dimensions and number
+            % of subdivisions, power(Field) = 1 (per unit or per unit^2)
+            %
+            % dimensions: size of field (in units). Can be 1-D or 2-D
+            % subdivs:  number of subdivisions in each dimension. Can be
+            %           scalar (for same pixels size in both dimension)
+            % wavelength: wavelenght of the light
+            % unit:     unit for dimensions and wavelength
+            %
+            Eout = Field(ones(dimensions), dimensions./subdivs, wavelength, unit); 
+            Eout = Eout / sqrt(power(Eout));
+        end
         function test()
             f = 2000; %um
             E = Field.plane([200, 200], 512, 0.6328, 'um');
             %E = Field(ones(256,512), 0.2, 0.6328, distance_unit);
             E = lens(E, f); %focus at a distance of 1000 mu
             E = aperture(E, 'gaussian', 20);
-            figure(1); imagesc(angle(E.data)); %display phase of the incident light (converging wave)
+            figure(1); imagesc(angle(E)); %display phase of the incident light (converging wave)
+            tic();
             E3D = propagate(E, ones(1,1,32), 2*f); %propagate to the focus through air in 32 steps
-            figure(1); imagesc(E3D(:,:,end));
-            figure(2); imagesc(E3D(end/2,:,:));
+            toc();
+            figure(2); imagesc(E3D(end/2, :, :)); %cross section in y-z plane
+            figure(3); imagesc(E3D(:,:,end/2)); %cross section in focal plane (xy)
         end
     end
 end
