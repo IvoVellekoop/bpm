@@ -47,7 +47,7 @@ classdef Field < SizedArray
             validateattributes(z, {'single', 'double'}, {'scalar'});
             
             %% Create absorbing boundaries (todo: optimize & allow tuning)
-            boundaries = tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
+            boundaries = tukeywin(size(obj, 1), 0.01) * tukeywin(size(obj, 2), 0.01).';
             
             %% Setup output array and loop variables
             Nslices = size(n, 3);
@@ -65,9 +65,10 @@ classdef Field < SizedArray
                 slice = n(:,:,s);
                 navg = mean2(slice);
                 fE = fft2(E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries)); % scatter and Fourier transform field
+                %fE = unwrap(fE);
                 kx = fE.coordinates(2);
                 ky = fE.coordinates(1);
-                kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
+                kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);                
                 E = ifft2(fE .* exp(1.0i * dz * kz)); %propagate field and inverse Fourier transform
                 Eout(:, :, s) = E.data;
             end
@@ -113,7 +114,25 @@ classdef Field < SizedArray
             end
             Eout = obj .* mask;
         end
+        function Lens = make_lens(obj,focal_length,dz)
+            %% This procedure produces a GRIN lens with the focal_length specified in focal_length.
+            %% The output, Lens, is the gradient refractive index map required to 
+            %% form focus as focal_length specified in a meterial with thickness dz 
+            %% dz   physical thickness of a layer (step_size) in the whole medium           
+            x = obj.coordinates(2);
+            y = obj.coordinates(1);          
+            extra_path = abs(focal_length)-sqrt(focal_length^2 - y.'.^2 - x.^2);
+            if (max(max(abs(diff(extra_path)))) > obj.lambda)
+                disp(round(max(max(abs(diff(extra_path))))/obj.lambda))
+                error('pixel number is not enogh to sample the lens curvature');
+            end
+            if (focal_length < 0)
+                extra_path = -extra_path;
+            end
+            Lens = ((max(max(extra_path))-extra_path)/dz)+1;
+        end           
     end
+    
     methods (Static)
         function Eout = plane(dimensions, subdivs, wavelength, unit)
             %% Generates a plane wave
@@ -135,8 +154,8 @@ classdef Field < SizedArray
             Eout = Eout / sqrt(power(Eout));
         end
         function test()
-            f = 2000; %um
-            D = 200; %um
+            f = 10000; %um
+            D = 1000; %um
             E = Field.plane([2*D, 2*D], 512, 0.6328, 'um');
             %E = Field(ones(256,512), 0.2, 0.6328, distance_unit);
             E = lens(E, f); %focus at a distance of 1000 mu
