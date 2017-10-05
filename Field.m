@@ -47,7 +47,9 @@ classdef Field < SizedArray
             validateattributes(z, {'single', 'double'}, {'scalar'});
             
             %% Create absorbing boundaries (todo: optimize & allow tuning)
+
             boundaries = tukeywin(size(obj, 1), 0.01) * tukeywin(size(obj, 2), 0.01).';
+
             
             %% Setup output array and loop variables
             Nslices = size(n, 3);
@@ -65,7 +67,6 @@ classdef Field < SizedArray
                 slice = n(:,:,s);
                 navg = mean2(slice);
                 fE = fft2(E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries)); % scatter and Fourier transform field
-                %fE = unwrap(fE);
                 kx = fE.coordinates(2);
                 ky = fE.coordinates(1);
                 kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);                
@@ -122,15 +123,21 @@ classdef Field < SizedArray
             x = obj.coordinates(2);
             y = obj.coordinates(1);          
             extra_path = abs(focal_length)-sqrt(focal_length^2 - y.'.^2 - x.^2);
-            if (max(max(abs(diff(extra_path)))) > obj.lambda)
+            if (max(max(abs(diff(extra_path)))) > obj.lambda / 2)
                 disp(round(max(max(abs(diff(extra_path))))/obj.lambda))
-                error('pixel number is not enogh to sample the lens curvature');
+                error('pixel number is not high enough to sample the lens curvature');
             end
             if (focal_length < 0)
                 extra_path = -extra_path;
             end
             Lens = ((max(max(extra_path))-extra_path)/dz)+1;
-        end           
+        end
+        function Scatter_Medium = make_medium(obj,scattering_coef,anisotropy_f,Layer_N)
+             Scatter_Medium = scattering_coef*rand(size(obj,1),size(obj,2),Layer_N)+1;
+             for i = 1:Layer_N
+                Scatter_Medium(:,:,i) = imgaussfilt(Scatter_Medium(:,:,i),anisotropy_f);
+             end              
+        end
     end
     
     methods (Static)
