@@ -48,8 +48,8 @@ classdef Field < SizedArray
             
             %% Create absorbing boundaries (todo: optimize & allow tuning)
 
-            boundaries = tukeywin(size(obj, 1), 0.01) * tukeywin(size(obj, 2), 0.01).';
-
+            boundaries = tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
+            
             
             %% Setup output array and loop variables
             Nslices = size(n, 3);
@@ -137,6 +137,48 @@ classdef Field < SizedArray
              for i = 1:Layer_N
                 Scatter_Medium(:,:,i) = imgaussfilt(Scatter_Medium(:,:,i),anisotropy_f);
              end              
+        end
+        %% Calculating the phase conjugate of the field
+        function Eout=PhaseConjugate(obj)
+            Edata = obj.data;
+            Eins = abs(Edata(:,:,size(Edata,3)));
+            Edata = Edata(:,:,size(Edata,3))./Eins;
+            Eshaped_conj=(1./Edata).*Eins;
+            %%%%%%%%%%%%%%%%%%%%%%%% 20000 %%%%%%%%%%%%%%%%%%%%%%%%%%%
+            Eout = Field(Eshaped_conj, (20000/8)/1024, 0.9, 'um');
+        end
+        
+        %% This step create phase step across the field according to the position
+        %  of each focus.
+        function Ephase_field = genPhaseStep(waven,Shaped_Field,CoM,dim)
+            % waven: 
+            % the tilting distance (D) in Z measured by number of wave, 
+            % e.g. waven = 50, 50 waves to reach the distance as D     
+            % Shaped_Field: a structure contains the field of each focus
+            % CoM: Center of mass of each focus
+            % dim: desired dimension to apply phase step.
+            if ~isstruct(Shaped_Field)
+                error('Shaped_Field needs to be a struct');
+            end            
+            
+            M = max(CoM(:,dim));
+            m = min(CoM(:,dim));
+            
+            %%%%%%%%%%%%%%%% 1144 %%%%%%%%%%%%%%%%%%%%%
+            Ephase_field=zeros(1144,1144);    
+            slope=waven/(M-m);
+
+            
+            s = fieldnames(Shaped_Field);
+            
+            for i=1:size(CoM,dim)
+                phase = (-(waven/2)+slope*(CoM(i,dim)-m))*2*pi;
+                w = getfield(Shaped_Field,s{i});
+                w = w.data*exp(1i*phase);
+                Ephase_field = Ephase_field + w; 
+            end
+            %%%%%%%%%%%%%%% 20000 %%%%%%%%%%%%%%%%%%%%
+            Ephase_field = Field(Ephase_field,(20000/8)/1024, 0.9, 'um');
         end
     end
     
