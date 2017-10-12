@@ -28,7 +28,6 @@ Nscattered(:,:,size(N,3)-Scat_Layer_No+1:size(N,3))=SN;
 %Eout_scattered propagates the E through Nscattered
 tic;
 E.gpu_enabled = false;
-N=N(:,:,1:200);
 Eout_air = E.propagate(N,layer_thick*size(N,3));
 Eout_scattered = E.propagate(Nscattered,layer_thick*size(N,3));
 toc;

@@ -89,6 +89,7 @@ classdef Field < SizedArray
             if obj.gpu_enabled
                 Eout = gather(Eout);
                 dz = gather(dz);
+                n = gather(n);
             end
             
             Eout = SizedArray(Eout, [obj.pitches, dz], obj.unit(1)); 

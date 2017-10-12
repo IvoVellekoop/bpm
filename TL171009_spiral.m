@@ -52,6 +52,9 @@ for i=1:400
     SN_revBig(61:1084,61:1084,i)=SN_rev(:,:,i);    
 end
 
+% normalSpiral = SumSpiral(SingleField);
+% Ein_Spiral = Field(normalSpiral,(20000/8)/1024, 0.9, 'um');
+% Eout_nSpiral = Ein_Spiral.propagate(NairBig,50*400);
 
 %% Propagates every focus in Nair to acquire corresponding plane wave
 %  then back propagate the resulting plane wave through a reversed 
@@ -67,10 +70,12 @@ s=fieldnames(SingleField);
 for i=1:size(s,1)
     disp(s{i})
     F = Field(getfield(SingleField,s{i}), (20000/8)/1024, 0.9, 'um');
+    F.gpu_enabled = true;
     Eout = F.propagate(NairBig,layer_thick*size(NairBig,3));
     Erev_in = Eout(:,:,size(Eout,3));
     clear Eout;
     Erev_in = Field(Erev_in.data, (20000/8)/1024, 0.9, 'um');
+    Erev_in.gpu_enabled = true;
     Erev_out = Erev_in.propagate(SN_revBig,layer_thick*size(NscatBig,3));
     Eshaped_in = Erev_out(:,:,size(Erev_out,3));
     clear Erev_out;
@@ -79,7 +84,7 @@ for i=1:size(s,1)
     Edata = Edata(:,:,size(Edata,3))./Eins;
     Eshaped_conj=(1./Edata).*Eins;
     clear Edata;
-    clear Eins;
+    clear Eins;   
     Eshaped_in = Field(Eshaped_conj, (20000/8)/1024, 0.9, 'um');
     clear Eshaped_conj;
     Shaped_Field = setfield(Shaped_Field,s{i},Eshaped_in);
