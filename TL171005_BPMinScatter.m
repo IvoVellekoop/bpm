@@ -1,3 +1,4 @@
+%%
 % An experiment:
 % The incoming field is defined in line 16,17
 % The medium is defined in line 18-23
@@ -25,10 +26,14 @@ Nscattered(:,:,size(N,3)-Scat_Layer_No+1:size(N,3))=SN;
 
 %Eout_air propagates the E through N (vaccum+lens)
 %Eout_scattered propagates the E through Nscattered
-
+tic;
+E.gpu_enabled = false;
+N=N(:,:,1:200);
 Eout_air = E.propagate(N,layer_thick*size(N,3));
 Eout_scattered = E.propagate(Nscattered,layer_thick*size(N,3));
+toc;
 
+%%
 %SN_rev reverses the order of Nscattered
 %A field with a point is picked from the last section of Eout_air
 %This layer is Ein_point (line 42,43)
