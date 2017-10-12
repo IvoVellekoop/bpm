@@ -2,6 +2,7 @@ classdef Field < SizedArray
     properties
         lambda  % wavelength (in micrometers)
         k0      % 2 pi / lambda
+        gpu_enabled = false;
     end
     methods 
         function obj = Field(E, pixel_size, lambda, unit)
@@ -63,6 +64,15 @@ classdef Field < SizedArray
             % for that slice, so that the inhomogeneous part of the refractive
             % index is minimized, and the accuracy is optimal.
             %
+            
+            if obj.gpu_enabled
+                obj.data = gpuArray(obj.data);
+                obj.k0 = gpuArray(obj.k0);
+                dz = gpuArray(dz);
+                n = gpuArray(n);
+                boundaries = gpuArray(boundaries);
+            end
+               
             for s=1:Nslices
                 slice = n(:,:,s);
                 navg = mean2(slice);
@@ -73,8 +83,10 @@ classdef Field < SizedArray
                 E = ifft2(fE .* exp(1.0i * dz * kz)); %propagate field and inverse Fourier transform
                 Eout(:, :, s) = E.data;
             end
+            Eout = gather(Eout);
             Eout = SizedArray(Eout, [obj.pitches, dz], obj.unit(1)); 
         end
+        
         function Eout = lens(obj, focal_length)
             %% Applies a lens function to the field
             % When starting with a plane wave, the resulting wave is
@@ -115,6 +127,7 @@ classdef Field < SizedArray
             end
             Eout = obj .* mask;
         end
+        
         function Lens = make_lens(obj,focal_length,dz)
             %% This procedure produces a GRIN lens with the focal_length specified in focal_length.
             %% The output, Lens, is the gradient refractive index map required to 
