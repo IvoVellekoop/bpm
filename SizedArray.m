@@ -65,8 +65,8 @@ classdef SizedArray
             end     
             obj.units = us;
             
-            % add default labels (only supports up to 4 dims at the moment)
-            default_labels = {'y', 'x', 'z', 't'};
+            % add default labels (only supports up to 4 dims at the moment)            
+            default_labels = {strcat('y (',units,')'), strcat('x (',units,')'), strcat('z (',units,')'), 't'};
             obj.labels = default_labels(1:dims);
         end
         function array = with_data(obj, data)
@@ -349,7 +349,10 @@ classdef SizedArray
             end
             lx = limits(s,2);
             ly = limits(s,1);
-            imagesc(lx, ly, d, varargin{:});
+% Changed by Tzu-Lun:  imagesc automatically plot abs(E).^2 (intensity) instead
+% of abs(E).
+            imagesc(lx, ly, d.^2, varargin{:});
+% 
             xlabel(lab(2));
             ylabel(lab(1));
             aspect_ratio = (lx(2)-lx(1))/(ly(2)-ly(1));
