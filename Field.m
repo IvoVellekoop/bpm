@@ -49,6 +49,7 @@ classdef Field < SizedArray
             % direction: determine the direction of propagation along the
             % medium n. This option only works when n is a structure,
             % namely, the medium is generated inside the function.
+            %
             % Added by Tzu-Lun (09-01-18): direction specifies the
             % propagation direction through the medium. The medium can be a
             % 3D matrix or a structure storing the parameters for the 
