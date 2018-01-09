@@ -24,6 +24,8 @@ classdef VCAO
     % field created by step 4).
     % 7) GradPhaseScanning() put a phase gradient instead of phase step on
     % top of the summed field in step 4) to check the memory effect.
+    % 8) finding_usp(): This function is used to calculate the ltr, and the
+    % size of memory effect range.
     properties        
         lambda; % um
         pixel_size; %um
@@ -36,7 +38,7 @@ classdef VCAO
         medium; % the scattering medium
         CofM; % Centers of Mass of all points in the spiral pattern
         OriSpiral; %The sum shaped fields from all points of the spiral
-        ltr; %mean transport length
+        ltr; %transport mean length
     end
     properties (Access=protected)
         focal_length = 10000; % of the lens, not used now
@@ -48,7 +50,7 @@ classdef VCAO
             obj.lambda = lambda;
             obj.unit = unit;
             obj.layer_thick = lambda/2;
-            pixel_size = lambda*sqrt(2);           
+            pixel_size = lambda/2;           
             obj.pixel_size = pixel_size;
             DimSize = floor(field_size/pixel_size);
             i=0;
@@ -57,7 +59,7 @@ classdef VCAO
                 i=i+1;
             end
             obj.DimSize = 2^i;
-            obj.field_size = DimSize*pixel_size;
+            obj.field_size = obj.DimSize*obj.pixel_size;
         end
         
         function obj = CreateMedium(obj,Scat_Layer_No,scat,anisotrop)
@@ -334,8 +336,8 @@ classdef VCAO
             %end
             
             Etilt=exp(1i*F);
-            Etilt=Field(Etilt,obj.pixel_size, obj.lambda, obj.unit);
-            Etilt.gpu_enabled = true;
+            Etilt=Field(Etilt,obj.lambda/2, obj.lambda, obj.unit);
+            Etilt.gpu_enabled = false;
             
             Etilt_out = Etilt.propagate(obj.medium,obj.Scat_Layer_No*obj.layer_thick,-1);
             %subplot(3,3,5);
@@ -352,14 +354,14 @@ classdef VCAO
             k0 = 2*pi/obj.lambda;
             
             N = obj.DimSize;
-            dx = obj.pixel_size;
+            dx = obj.lambda/2;
             x = (0:N-1)*dx;
             dk = 2*pi/(dx*N);
             k = ((0:N-1) - N/2)*dk;
             f = fit(k',Pkb','gauss1');
             c =  f.c1  ;
             
-            ltr = ((k0^2)*L/(2*c^2))%mm
+            ltr = ((k0^2)*L/(2*c^2));
             sqrt(6*ltr/((k0^2)*L))
             obj.ltr = ltr;
         end

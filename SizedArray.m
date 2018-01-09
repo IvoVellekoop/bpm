@@ -382,6 +382,33 @@ classdef SizedArray
             end
             colorbar;
         end
+    
+        function Imagesc(obj, varargin)
+            s = squeeze(obj);
+            lab = s.labels;
+            if length(lab) < 2
+                lab{2} = []; 
+            end
+            if isreal(s.data)
+                d = (s.data).^2;
+            else
+                d = abs(s.data).^2;
+            end
+            lx = limits(s,2);
+            ly = limits(s,1);
+
+            imagesc(lx, ly, d, varargin{:});
+% 
+            xlabel(lab(2));
+            ylabel(lab(1));
+            aspect_ratio = (lx(2)-lx(1))/(ly(2)-ly(1));
+            %prefer square pixels, but if the aspect ratio is really high,
+            %use rectangular pixels (axis auto).
+            if aspect_ratio < 4 && aspect_ratio > 0.25
+                axis image;
+            end
+            colorbar;
+        end
     end
     
     methods (Access = private)
