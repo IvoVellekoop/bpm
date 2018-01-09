@@ -6,7 +6,7 @@ field_size = 2000; %um
 DimSize = floor(field_size/pixel_size);
 layer_thick = 100; % Thickness of every section in Z (µm)
 scattering_coefficient = 1.1; % Here and the next row defines how scatter the scattering medium is. 
-GaussFilterSigma = 25;
+GaussFilterSigma = 50;
 Scat_Layer_No = 25; % Layer number of the scattering medium
 Additional_layers = 0; % number of additional layers of vaccum after the scattering medium
 

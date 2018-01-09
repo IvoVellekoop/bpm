@@ -27,7 +27,7 @@ classdef Field < SizedArray
             P = obj.data(:)' * obj.data(:);
             P = P * prod(obj.pitches); %take into account the surface area of each pixel (dx dy in the integral)
         end
-        function Eout = propagate(obj, n, z)
+        function Eout = propagate(obj, n, z, direction)
             %% Propagate the field through refractive index map n
             % Propagates the wave over a total distance z
             % 
@@ -45,17 +45,47 @@ classdef Field < SizedArray
             %
             % n: 3-dimensional array (y,x,z), or scalar
             % returns: field at each propagation step (in a 3-D matrix)
+            %
+            % direction: determine the direction of propagation along the
+            % medium n. This option only works when n is a structure,
+            % namely, the medium is generated inside the function.
+            % Added by Tzu-Lun (09-01-18): direction specifies the
+            % propagation direction through the medium. The medium can be a
+            % 3D matrix or a structure storing the parameters for the 
+            % random number generation function. When the medium formate is
+            % the latter one, propating direction is important and needed
+            % to be specified. 0 is forward direction and else is reverse
+            % direction.
             validateattributes(z, {'single', 'double'}, {'scalar'});
             
             %% Create absorbing boundaries (todo: optimize & allow tuning)
-
+            
             boundaries = tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
             
             
             %% Setup output array and loop variables
-            Nslices = size(n, 3);
+            
+            if ~isstruct(n)
+                Nslices = size(n, 3);
+                medium = n;
+            else
+                str = fieldnames(n);
+                Nslices = length(str)-2;
+                medium = zeros(size(obj,1),size(obj,2),Nslices);
+                for s = 1:Nslices
+                    p = s;
+                    if direction ~ 0;
+                            s = Nslices-s+1;
+                    end
+                    f = getfield(n,str{s});
+                    rng(f);
+                    slice = n.scat_coef*rand(size(obj,1),size(obj,2))+1;
+                    slice = imgaussfilt(slice,n.anisotropy_f);
+                    medium(:,:,p)=slice;                    
+                end
+            end
             dz = z / Nslices;
-            Eout = zeros(size(obj,1), size(obj,2), Nslices);
+            Eout = zeros(size(obj,1), size(obj,2), 1);
             E = obj;
             
             %% Standard beam propagation loop: 
@@ -70,19 +100,29 @@ classdef Field < SizedArray
                 E.data = gpuArray(E.data);
                 obj.k0 = gpuArray(obj.k0);
                 dz = gpuArray(dz);
-                n = gpuArray(n);
                 boundaries = gpuArray(boundaries);
             end
-               
+            
+            count=1;
+            
             for s=1:Nslices
-                slice = n(:,:,s);
+                slice = medium(:,:,s);
+                
+                if obj.gpu_enabled
+                    slice = gpuArray(slice);           
+                end
+                
                 navg = mean2(slice);
                 fE = fft2(E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries)); % scatter and Fourier transform field
                 kx = fE.coordinates(2);
                 ky = fE.coordinates(1);
-                kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);                
+                if obj.gpu_enabled
+                    kx = gpuArray(kx);
+                    ky = gpuArray(ky);
+                end
+                kz = sqrt(complex((navg * obj.k0)^2 - ky.^2.' - kx.^2));
                 E = ifft2(fE .* exp(1.0i * dz * kz)); %propagate field and inverse Fourier transform
-                Eout(:, :, s) = E.data;
+                Eout(:, :) = E.data;
             end
             Eout = gather(Eout);
             
@@ -92,7 +132,11 @@ classdef Field < SizedArray
                 n = gather(n);
             end
             
-            Eout = SizedArray(Eout, [obj.pitches, dz], obj.unit(1)); 
+            if size(Eout,3)>1
+                Eout = SizedArray(Eout, [obj.pitches, dz], obj.units(1));
+            else
+                Eout = Field(Eout,obj.pitches,obj.lambda,obj.units(1));
+            end
         end
         
         function Eout = lens(obj, focal_length)
@@ -153,56 +197,48 @@ classdef Field < SizedArray
             end
             Lens = ((max(max(extra_path))-extra_path)/dz)+1;
         end
+        % Generate random matrix to be a scattering medium as a function 
         function Scatter_Medium = make_medium(obj,scattering_coef,anisotropy_f,Layer_N)
-             Scatter_Medium = scattering_coef*rand(size(obj,1),size(obj,2),Layer_N)+1;
+             Scatter_Medium = scattering_coef*rand(size(obj,1),size(obj,2),Layer_N)+1;             
              for i = 1:Layer_N
                 Scatter_Medium(:,:,i) = imgaussfilt(Scatter_Medium(:,:,i),anisotropy_f);
              end              
         end
-        %% Calculating the phase conjugate of the field
-        function Eout=PhaseConjugate(obj)
-            Edata = obj.data;
-            Eins = abs(Edata(:,:,size(Edata,3)));
-            Edata = Edata(:,:,size(Edata,3))./Eins;
-            Eshaped_conj=(1./Edata).*Eins;
-            %%%%%%%%%%%%%%%%%%%%%%%% 20000 %%%%%%%%%%%%%%%%%%%%%%%%%%%
-            Eout = Field(Eshaped_conj, (20000/8)/1024, 0.9, 'um');
+        % Generate random matrix and store its index instead of the whole
+        % matrix
+        function Scattering_MediumInd = gen_medium(obj,Layer_N)
+            Scattering_MediumInd=struct;
+            for i = 1:Layer_N
+                ind = rng;
+                temp = rand(size(obj,1),size(obj,2));
+                Scattering_MediumInd = setfield(Scattering_MediumInd,strcat('ind_',num2str(i)),ind);
+            end
         end
         
-        %% This step create phase step across the field according to the position
-        %  of each focus.
-        function Ephase_field = genPhaseStep(waven,Shaped_Field,CoM,dim)
-            % waven: 
-            % the tilting distance (D) in Z measured by number of wave, 
-            % e.g. waven = 50, 50 waves to reach the distance as D     
-            % Shaped_Field: a structure contains the field of each focus
-            % CoM: Center of mass of each focus
-            % dim: desired dimension to apply phase step.
-            if ~isstruct(Shaped_Field)
-                error('Shaped_Field needs to be a struct');
-            end            
-            
-            M = max(CoM(:,dim));
-            m = min(CoM(:,dim));
-            
-            %%%%%%%%%%%%%%%% 1144 %%%%%%%%%%%%%%%%%%%%%
-            Ephase_field=zeros(1144,1144);    
-            slope=waven/(M-m);
-
-            
-            s = fieldnames(Shaped_Field);
-            
-            for i=1:size(CoM,dim)
-                phase = (-(waven/2)+slope*(CoM(i,dim)-m))*2*pi;
-                w = getfield(Shaped_Field,s{i});
-                w = w.data*exp(1i*phase);
-                Ephase_field = Ephase_field + w; 
+        % Propagate through a medium coding by the index of random number
+        % generation function.
+        function Eout = MultiLayerPropagate(obj,SMI,scattering_coef,anisotropy_f,dz,direction)
+            % direction: 0, forward propagation; ~0, reverse propagation
+            if ~isstruct(SMI)
+                error('Medium should be a structure of random number generator index')
             end
-            %%%%%%%%%%%%%%% 20000 %%%%%%%%%%%%%%%%%%%%
-            Ephase_field = Field(Ephase_field,(20000/8)/1024, 0.9, 'um');
+            Eout = obj;
+            s = fieldnames(SMI);
+            LayerN = length(s);
+
+            for i=1:LayerN
+                if direction ~ 0;
+                    i = LayerN-i+1;
+                end
+                f = getfield(SMI,s{i});
+                rng(f);
+                SN = scattering_coef*rand(size(obj,1),size(obj,2))+1;
+                SN = imgaussfilt(SN,anisotropy_f);             
+                Eout = Eout.propagate(SN, dz);
+                subplot(3,4,i+1);imagesc(Eout)        
+            end
         end
     end
-    
     methods (Static)
         function Eout = plane(dimensions, subdivs, wavelength, unit)
             %% Generates a plane wave

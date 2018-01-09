@@ -64,11 +64,11 @@ classdef SizedArray
                 error('Invalid input for ''units''');
             end     
             obj.units = us;
-            
             % add default labels (only supports up to 4 dims at the moment)            
-            default_labels = {strcat('y (',units,')'), strcat('x (',units,')'), strcat('z (',units,')'), 't'};
+            default_labels = {'y', 'x', 'z', 't'};
             obj.labels = default_labels(1:dims);
         end
+        
         function array = with_data(obj, data)
             %% returns an object with the same properties (pitch, units) as template object 'obj'
             % but with the data set to 'data'
@@ -77,7 +77,8 @@ classdef SizedArray
             %end
             array = obj;
             array.data = data;
-        end            
+        end
+        
         function coords = coordinates(obj, dim)
             %% return coordinate range for given dimension
             %If the array uses standard coordinates (is_fft = false),
@@ -100,6 +101,7 @@ classdef SizedArray
                 coords = ifftshift(coords);
             end
         end
+        
         function u = unit(obj, dim)
             if dim > ndims(obj.data)
                 u = Unit(); %unitless
@@ -111,15 +113,19 @@ classdef SizedArray
                 end
             end
         end
+        
         function Er = real(obj)
             Er = obj.with_data(real(obj.data));
         end
+        
         function Ei = imag(obj)
             Ei = obj.with_data(imag(obj.data));
         end
+        
         function ang = angle(obj)
             ang = SizedArray(angle(obj.data), obj.pitches, ''); % new unitless array
         end
+        
         function a = abs(obj)
             a = obj.with_data(abs(obj.data));
         end
@@ -128,9 +134,11 @@ classdef SizedArray
             % returns size of the data in the SizedArray
             N=size(obj.data,varargin{:});
         end
+        
         function N = end(obj, k, n)
             N = builtin('end', obj.data, k, n);
         end
+        
         function F = fft(obj)
             % Perform a Fourier transform of a 1-D SizedArray
             % This function throws an error if the array is not 1-dimensional
@@ -142,6 +150,7 @@ classdef SizedArray
             end
             F = fftn(obj);
         end
+        
         function F = ifft(obj)
             % Perform a Fourier transform of a 1-D SizedArray
             % This function throws an error if the array is not 1-dimensional
@@ -153,6 +162,7 @@ classdef SizedArray
             end
             F = ifftn(obj);
         end
+        
         function F = fft2(obj)
             % Perform a Fourier transform of a 2-D SizedArray
             % This function throws an error if the array is not 2-dimensional
@@ -164,6 +174,7 @@ classdef SizedArray
             end
             F = fftn(obj);
         end
+        
         function F = ifft2(obj)
             % Perform a Fourier transform of a 2-D SizedArray
             % This function throws an error if the array is not 2-dimensional
@@ -175,6 +186,7 @@ classdef SizedArray
             end
             F = ifftn(obj);
         end
+        
         function F = fftn(obj)
            % Performs a Fourier transform over all dimensions of the array
            % returns a new SizedArray object with correct Fourier
@@ -186,6 +198,7 @@ classdef SizedArray
            F = obj.with_data(fftn(obj.data));
            F.is_fft = true;
         end
+        
         function F = ifftn(obj)
            % Performs a Fourier transform over all dimensions of the array
            % returns a new SizedArray object with correct Fourier
@@ -197,6 +210,7 @@ classdef SizedArray
            F = obj.with_data(ifftn(obj.data));
            F.is_fft = false;
         end
+        
         function C = times(A, B)
             if ~isa(B, 'SizedArray') %only A is SizedArray
                 C = A.with_data(A.data .* B);
@@ -207,6 +221,7 @@ classdef SizedArray
                 C = A.with_data(B.data .* A.data);
             end
         end
+        
         function C = mtimes(A, B)
             if ~isa(B, 'SizedArray') %only A is sizedarray
                 validateattributes(B, {'single', 'double'}, {'scalar'});
@@ -225,12 +240,14 @@ classdef SizedArray
                 C = B.with_data(B.data * A);
             end
         end
+        
         function C = mrdivide(A, B) % A/B
             if ~isscalar(B) || ~isnumeric(B)
                 error('You can only / divide a sized array by a scalar. Also see ./');
             end
             C = rdivide(A, B);
         end
+        
         function C = rdivide(A, B) % A/.B
             if ~isa(B, 'SizedArray') %only A is SizedArray
                 C = A.with_data(A.data ./ B);
@@ -242,13 +259,14 @@ classdef SizedArray
         function same = same_size(A, B)
             same = isequal(A.pitches, B.pitches) && isequal(size(A), size(B)) && isequal(A.units, B.units) && isequal(A.is_fft, B.is_fft);
         end
+        
         function B = subsref(obj, S)
             % Implement indexing operator for sized array
             % This function is called when using the indexing / slicing
             % operator: e. g. A(:,2)
             % (unfortunately, it is also called when accessing properties
             % or methods, which is why this implementation needs to be so
-            % complucated).
+            % complicated).
             if strcmp(S(1).type, '()')
                 % slice data
                 B = obj.with_data(subsref(obj.data, S)); 
@@ -271,6 +289,7 @@ classdef SizedArray
                 end
             end
         end
+        
         function obj = subsasgn(obj, s, val)
             % NOTE: this implementation is SLOW since it always copies all
             % data!
@@ -304,6 +323,7 @@ classdef SizedArray
                 obj = subsasgn(obj,snew,val);
             end
         end
+        
         function B = squeeze(obj)
             % removes singleton dimensions from the data array (as in
             % the version of squeeze operating on matrices)
@@ -349,9 +369,8 @@ classdef SizedArray
             end
             lx = limits(s,2);
             ly = limits(s,1);
-% Changed by Tzu-Lun:  imagesc automatically plot abs(E).^2 (intensity) instead
-% of abs(E).
-            imagesc(lx, ly, d.^2, varargin{:});
+
+            imagesc(lx, ly, d, varargin{:});
 % 
             xlabel(lab(2));
             ylabel(lab(1));
@@ -364,6 +383,7 @@ classdef SizedArray
             colorbar;
         end
     end
+    
     methods (Access = private)
         function l = limits(obj, dim)
             %returns left & right bound only (for use in image/imagesc). 
