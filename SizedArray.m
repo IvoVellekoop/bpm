@@ -5,7 +5,7 @@ classdef SizedArray
     properties
         data %raw array data
     end
-    properties (Access=protected)
+    properties (SetAccess=protected, GetAccess=public)
         pitches %vector of dx,dy,dz, etc. 
         is_fft %true indicates that we are dealing with fft-shifted coordinates 
         % when true, 'coordinates' returns negative values in the last half of the vector
@@ -123,7 +123,7 @@ classdef SizedArray
         end
         
         function ang = angle(obj)
-            ang = SizedArray(angle(obj.data), obj.pitches, ''); % new unitless array
+            ang = obj.with_data(angle(obj.data));
         end
         
         function a = abs(obj)
@@ -277,6 +277,7 @@ classdef SizedArray
                 newdim = ndims(B.data);
                 B.pitches = B.pitches(1:newdim); 
                 B.units = B.units(1:newdim);
+                B.labels = B.labels(1:newdim);
             else
                 % used for accessing properties. Unfortunately, calling
                 % the 'builtin' version of subsref ignores the fact
@@ -349,6 +350,7 @@ classdef SizedArray
                     bsize((blen+1):2) = 1;
                     B.pitches((blen+1):2) = 1;
                     B.units((blen+1):2) = Unit();
+                    B.labels((blen+1):2) = '';
                 end
                 B.data = reshape(B.data, bsize);
             end
@@ -359,6 +361,9 @@ classdef SizedArray
         function imagesc(obj, varargin)
             s = squeeze(obj);
             lab = s.labels;
+            for n=1:length(lab)
+                lab{n} = [lab{n}, ' ', char(s.units(n), true)];
+            end
             if length(lab) < 2
                 lab{2} = []; 
             end
