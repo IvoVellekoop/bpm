@@ -99,7 +99,9 @@ classdef Field < SizedArray
                 fE = fE .* exp(0.5i * dz * kz);
             end
             Eout = ifft2(fE);
-            Elayers = SizedArray(Elayers, [obj.pitches dz], [obj.units, obj.units(1)]);
+            if store_all
+                Elayers = SizedArray(Elayers, [obj.pitches dz], [obj.units, obj.units(1)]);
+            end
         end
         
         function Eout = lens(obj, focal_length)
