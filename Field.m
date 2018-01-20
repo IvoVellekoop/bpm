@@ -93,6 +93,7 @@ classdef Field < SizedArray
                 if store_all
                     Elayers(:, :, s) = E.data;
                 end
+                imagesc(real(E.data)); drawnow();
                 fE = fft2(E);
 
                 % propagate next half

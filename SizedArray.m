@@ -129,7 +129,11 @@ classdef SizedArray
         function a = abs(obj)
             a = obj.with_data(abs(obj.data));
         end
-            
+        
+        function cE = conj(obj)
+            cE = obj.with_data(conj(obj.data));
+        end
+        
         function N = size(obj, varargin)
             % returns size of the data in the SizedArray
             N=size(obj.data,varargin{:});
