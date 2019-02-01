@@ -214,6 +214,17 @@ classdef SizedArray
            F = obj.with_data(ifftn(obj.data));
            F.is_fft = false;
         end
+
+        function C = plus(A, B)
+            if ~isa(B, 'SizedArray') %only A is SizedArray
+                C = A.with_data(A.data + B);
+            elseif ~isa(A, 'SizedArray') %only B is SizedArray
+                C = B.with_data(B.data + A);
+            else
+                assert_same_size(A, B); %both are SizedArray
+                C = A.with_data(B.data + A.data);
+            end
+        end
         
         function C = times(A, B)
             if ~isa(B, 'SizedArray') %only A is SizedArray
@@ -223,6 +234,28 @@ classdef SizedArray
             else
                 assert_same_size(A, B); %both are SizedArray
                 C = A.with_data(B.data .* A.data);
+            end
+        end
+
+        function C = minus(A, B)
+            if ~isa(B, 'SizedArray') %only A is SizedArray
+                C = A.with_data(A.data - B);
+            elseif ~isa(A, 'SizedArray') %only B is SizedArray
+                C = B.with_data(B.data - A);
+            else
+                assert_same_size(A, B); %both are SizedArray
+                C = A.with_data(B.data - A.data);
+            end
+        end
+        
+        function C = power(A, B)
+            if ~isa(B, 'SizedArray') %only A is SizedArray
+                C = A.with_data(A.data .^ B);
+            elseif ~isa(A, 'SizedArray') %only B is SizedArray
+                C = B.with_data(B.data .^ A);
+            else
+                assert_same_size(A, B); %both are SizedArray
+                C = A.with_data(B.data .^ A.data);
             end
         end
         
@@ -366,7 +399,7 @@ classdef SizedArray
             s = squeeze(obj);
             lab = s.labels;
             for n=1:length(lab)
-                lab{n} = [lab{n}, ' ', char(s.units(n), true)];
+                lab{n} = [lab{n}, ' ', char(s.unit(n), true)];
             end
             if length(lab) < 2
                 lab{2} = []; 
