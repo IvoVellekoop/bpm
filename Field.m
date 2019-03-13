@@ -164,6 +164,7 @@ classdef Field < SizedArray
             Lens = ((max(max(extra_path))-extra_path)/dz)+1;
         end
     end
+    
     methods (Static)
         function Eout = plane(dimensions, subdivs, wavelength, unit)
             %% Generates a plane wave
