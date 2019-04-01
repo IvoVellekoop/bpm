@@ -104,6 +104,22 @@ classdef Field < SizedArray
                 Elayers = SizedArray(Elayers, [obj.pitches dz], [obj.units, obj.units(1)]);
             end
         end
+
+        function [E_out,E_layers] = backPropagate(E,n,total_distance)
+          %  Back propagates the wave. It does the following:
+          %     1) Change positive distance to negative distance.
+          %     2) Reverse the order of scattering E_layers.
+          %     3) Uses propagate() to propagate the deltaE field with above inputs.
+          %  Effectively performs the adjoint of propagate().
+
+          total_distance = -total_distance;
+
+          n_reverse = flip(n,3);
+
+          [E_out,E_layers] = propagate(E,n_reverse,total_distance);
+
+
+           end
         
         function Eout = lens(obj, focal_length)
             %% Applies a lens function to the field
@@ -166,7 +182,7 @@ classdef Field < SizedArray
     end
     
     methods (Static)
-        function Eout = plane(dimensions, subdivs, wavelength, unit)
+        function Eout = plane(dimensions, subdivs, wavelength, unit, theta_x, theta_y)
             %% Generates a plane wave
             %
             % The amplitude of the plane wave is normalized to have unit
@@ -178,11 +194,24 @@ classdef Field < SizedArray
             %           scalar (for same pixels size in both dimension)
             % wavelength: wavelenght of the light
             % unit:     unit for dimensions and wavelength
+            % theta_x : incident angle in the x direction
+            % theta_y : incident angle in the y direction
             %
-            if (isscalar(subdivs)) %repeat same value if subdivs is a scalar
-                subdivs = ones(1, length(dimensions)) * subdivs;
+            % Note that the units of theta_x*pi and theta_y*pi are radians.
+            % If theta_x and theta_y are not specified, default values are set to pi/4.
+
+            k0 = (2*pi)/wavelength;
+            if nargin < 5
+             disp("Default angles set to pi/4 radians");
+             theta_x = pi/4;
+             theta_y = pi/4;
             end
-            Eout = Field(ones(subdivs), dimensions./subdivs, wavelength, unit); 
+
+             grad_x = k0 * cos(theta_x)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+             grad_y = k0 * sin(theta_y)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+
+             E_in = grad_x + grad_y' ;
+             Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
         function test()
