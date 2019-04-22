@@ -182,7 +182,7 @@ classdef Field < SizedArray
     end
     
     methods (Static)
-        function Eout = plane(dimensions, subdivs, wavelength, unit, theta_x, theta_y)
+        function Eout = plane(dimensions, subdivs, wavelength, unit, theta_xy, theta_z)
             %% Generates a plane wave
             %
             % The amplitude of the plane wave is normalized to have unit
@@ -197,18 +197,18 @@ classdef Field < SizedArray
             % theta_x : incident angle in the x direction
             % theta_y : incident angle in the y direction
             %
-            % Note that the units of theta_x*pi and theta_y*pi are radians.
-            % If theta_x and theta_y are not specified, default values are set to pi/4.
+            % Note that the units of theta_xy*pi and theta_z*pi are radians.
+            % If theta_xy and theta_z are not specified, default values are set to pi/4.
 
             k0 = (2*pi)/wavelength;
             if nargin < 5
              disp("Default angles set to pi/4 radians");
-             theta_x = pi/4;
-             theta_y = pi/4;
+             theta_xy = pi/4;
+             theta_z = pi/4;
             end
 
-             grad_x = k0 * cos(theta_x)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
-             grad_y = k0 * sin(theta_y)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+             grad_x = k0 *sin(theta_z)* cos(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+             grad_y = k0 *sin(theta_z)* sin(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
 
              E_in = grad_x + grad_y' ;
              Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
