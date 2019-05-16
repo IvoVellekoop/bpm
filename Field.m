@@ -3,7 +3,7 @@ classdef Field < SizedArray
         lambda  % wavelength (in micrometers)
         k0      % 2 pi / lambda
     end
-    methods 
+    methods
         function obj = Field(E, pixel_size, lambda, unit)
         %% Construct a new field object
         %   E             valuse of the actual field
@@ -28,9 +28,9 @@ classdef Field < SizedArray
         end
         function [Eout, Elayers] = propagate(obj, n, total_distance)
 %% Propagate the field through refractive index map n
-%   Propagates the wave over a total distance total_distance through a 
+%   Propagates the wave over a total distance total_distance through a
 %   structure with refractive index n.
-% 
+%
 %   n is a 3-D matrix with refractive index values. Each slice n(:,:,i)
 %   corresponds to one scattering layer. For each layer, this function
 %   first propagates the light by dz/2 (with dz the thickness of the layer)
@@ -39,7 +39,7 @@ classdef Field < SizedArray
 %   Eout is the electric field after propagating through all layers
 %   optionally, one can specify Elayers to additionally get the field
 %   in the exact center of each layer (directly after scattering).
-% 
+%
 %   If n is a scalar, this function simply propagates over
 %   distance z without scattering
 %
@@ -50,18 +50,18 @@ classdef Field < SizedArray
 %
             validateattributes(total_distance, {'single', 'double'}, {'scalar'});
             store_all = nargout > 1;
-    
+
             %% Create absorbing boundaries (todo: optimize & allow tuning)
             boundaries = tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
-            
+
             %% Setup output array and loop variables
-            Nslices = size(n, 3); 
+            Nslices = size(n, 3);
             dz = total_distance / Nslices;
             if store_all
                 Elayers = zeros(size(obj,1), size(obj,2), Nslices);
             end
-            
-            %% Standard beam propagation loop: 
+
+            %% Standard beam propagation loop:
             % diffract, Fourier tranform, propagate, transform back, repeat...
             % We base the propagation step on the average refractive index
             % for that slice, so that the inhomogeneous part of the refractive
@@ -72,21 +72,21 @@ classdef Field < SizedArray
             % passed to create the field was a gpuArray, it will remain a
             % gpuArray and all other arrays will be converted automatically.
             %
-            
+
             % start with Fourier transformed field (apply boundaries)
-            fE = fft2(obj .* boundaries); 
+            fE = fft2(obj .* boundaries);
             kx = fE.coordinates(2);
             ky = fE.coordinates(1);
-                
+
             % propagate 1/2 step, apply scattering, propagate next 1/2 step
             for s=1:Nslices
                 slice = n(:,:,s);
                 navg = mean2(slice);
-                
+
                 % propagate half way
                 kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
                 fE = fE .* exp(0.5i * dz * kz);
-                
+
                 % scatter
                 E = ifft2(fE);
                 E = E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries);
@@ -101,7 +101,7 @@ classdef Field < SizedArray
             end
             Eout = ifft2(fE);
             if store_all
-                Elayers = SizedArray(Elayers, [obj.pitches dz], [obj.units, obj.units(1)]);
+                Elayers = SizedArray(Elayers, [obj.pitches abs(dz)], [obj.units, obj.units(1)]);
             end
         end
 
@@ -120,7 +120,7 @@ classdef Field < SizedArray
 
 
            end
-        
+
         function Eout = lens(obj, focal_length)
             %% Applies a lens function to the field
             % When starting with a plane wave, the resulting wave is
@@ -140,7 +140,7 @@ classdef Field < SizedArray
             % obj       field to apply the intensity mask to
             % type      type of mask, can currently be 'circular' or 'gaussian'
             % r         'radius' of the mask. Exact meaning depends on aperture type
-            % center    center position of the mask, specified in the same 
+            % center    center position of the mask, specified in the same
             %           units as the field coordinates. Defaults to 0.0
             %
             validateattributes(r, {'single', 'double'}, {'scalar', 'positive'});
@@ -152,7 +152,7 @@ classdef Field < SizedArray
             %'radius'
             x = (obj.coordinates(2) - center(2))/r;
             y = (obj.coordinates(1) - center(1))/r;
-            
+
             switch type
             case 'circular'
                 mask = x.^2 + y.'.^2 < 1.0;
@@ -161,14 +161,14 @@ classdef Field < SizedArray
             end
             Eout = obj .* mask;
         end
-        
+
         function Lens = make_lens(obj,focal_length,dz)
             %% This procedure produces a GRIN lens with the focal_length specified in focal_length.
-            %% The output, Lens, is the gradient refractive index map required to 
-            %% form focus as focal_length specified in a meterial with thickness dz 
-            %% dz   physical thickness of a layer (step_size) in the whole medium           
+            %% The output, Lens, is the gradient refractive index map required to
+            %% form focus as focal_length specified in a meterial with thickness dz
+            %% dz   physical thickness of a layer (step_size) in the whole medium
             x = obj.coordinates(2);
-            y = obj.coordinates(1);          
+            y = obj.coordinates(1);
             extra_path = abs(focal_length)-sqrt(focal_length^2 - y.'.^2 - x.^2);
             if (max(max(abs(diff(extra_path)))) > obj.lambda / 2)
                 disp(round(max(max(abs(diff(extra_path))))/obj.lambda))
@@ -180,7 +180,7 @@ classdef Field < SizedArray
             Lens = ((max(max(extra_path))-extra_path)/dz)+1;
         end
     end
-    
+
     methods (Static)
         function Eout = plane(dimensions, subdivs, wavelength, unit, theta_xy, theta_z)
             %% Generates a plane wave
