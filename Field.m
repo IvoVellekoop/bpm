@@ -100,6 +100,9 @@ classdef Field < SizedArray
                 fE = fE .* exp(0.5i * dz * kz);
             end
             Eout = ifft2(fE);
+            if Nslices ==1
+             Elayers(:,:,2) = gather(Eout.data);
+             end 
             if store_all
                 Elayers = SizedArray(Elayers, [obj.pitches abs(dz)], [obj.units, obj.units(1)]);
             end
