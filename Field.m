@@ -91,7 +91,7 @@ classdef Field < SizedArray
                 E = ifft2(fE);
                 E = E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries);
                 if store_all
-                    Elayers(:, :, s) = E.data;
+                    Elayers(:, :, s) = gather(E.data);
                 end
                 imagesc(real(E.data)); drawnow();
                 fE = fft2(E);
@@ -102,7 +102,7 @@ classdef Field < SizedArray
             Eout = ifft2(fE);
             if Nslices ==1
              Elayers(:,:,2) = gather(Eout.data);
-             end 
+             end
             if store_all
                 Elayers = SizedArray(Elayers, [obj.pitches abs(dz)], [obj.units, obj.units(1)]);
             end
@@ -210,8 +210,8 @@ classdef Field < SizedArray
              theta_z = pi/4;
             end
 
-             grad_x = k0 *sin(theta_z)* cos(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
-             grad_y = k0 *sin(theta_z)* sin(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+             grad_x = k0 *cos(theta_z)* cos(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+             grad_y = k0 *cos(theta_z)* sin(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
 
              E_in = grad_x + grad_y' ;
              Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
