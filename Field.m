@@ -52,7 +52,7 @@ classdef Field < SizedArray
             store_all = nargout > 1;
 
             %% Create absorbing boundaries (todo: optimize & allow tuning)
-            boundaries = tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
+            boundaries = 1; %tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
 
             %% Setup output array and loop variables
             Nslices = size(n, 3);
@@ -209,13 +209,13 @@ classdef Field < SizedArray
              theta_z = pi/4;
             end
             N_x = theta_xy; N_y = theta_z;
-            kx = (2*pi*N_x)dimensions(1);
-            ky = (2*pi*N_y)dimensions(2);
+            kx = (2*pi*N_x)/dimensions(1);
+            ky = (2*pi*N_y)/dimensions(2);
 
              grad_x = (kx)*[dimensions(1)/(subdivs):dimensions(1)/(subdivs):dimensions(1)] ;
              grad_y = (ky)*[dimensions(2)/(subdivs):dimensions(2)/(subdivs):dimensions(2)] ;
 
-             E_in = grad_x' + grad_y ;
+             E_in = grad_x + grad_y' ;
              Eout = Field(exp(1i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
