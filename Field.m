@@ -203,18 +203,20 @@ classdef Field < SizedArray
             % Note that the units of theta_xy*pi and theta_z*pi are radians.
             % If theta_xy and theta_z are not specified, default values are set to pi/4.
 
-            k0 = (2*pi)/wavelength;
+            k0 = 2*pi / wavelength;
             if nargin < 5
-             disp("Default angles set to pi/4 radians");
-             theta_xy = pi/4;
+             theta_xy =pi/4;
              theta_z = pi/4;
             end
+            N_x = theta_xy; N_y = theta_z;
+            kx = (2*pi*N_x)dimensions(1);
+            ky = (2*pi*N_y)dimensions(2);
 
-             grad_x = k0 *cos(theta_z)* cos(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
-             grad_y = k0 *cos(theta_z)* sin(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+             grad_x = (kx)*[dimensions(1)/(subdivs):dimensions(1)/(subdivs):dimensions(1)] ;
+             grad_y = (ky)*[dimensions(2)/(subdivs):dimensions(2)/(subdivs):dimensions(2)] ;
 
-             E_in = grad_x + grad_y' ;
-             Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
+             E_in = grad_x' + grad_y ;
+             Eout = Field(exp(1i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
         function test()
