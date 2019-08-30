@@ -82,7 +82,9 @@ classdef Field < SizedArray
             for s=1:Nslices
                 slice = n(:,:,s);
                 navg = mean2(slice);
-
+                if navg < 1
+                  imagesc(slice); drawnow();
+                end
                 % propagate half way
                 kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
                 fE = fE .* exp(0.5i * dz * kz);
@@ -112,7 +114,7 @@ classdef Field < SizedArray
           %  Back propagates the wave. It does the following:
           %     1) Change positive distance to negative distance.
           %     2) Reverse the order of scattering E_layers.
-          %     3) Uses propagate() to propagate the deltaE field with above inputs.
+          %     3) Uses propagate() to propagate the E field with above inputs.
           %  Effectively performs the adjoint of propagate().
 
           total_distance = -total_distance;
@@ -197,25 +199,29 @@ classdef Field < SizedArray
             %           scalar (for same pixels size in both dimension)
             % wavelength: wavelenght of the light
             % unit:     unit for dimensions and wavelength
-            % theta_x : incident angle in the x direction
-            % theta_y : incident angle in the y direction
+            % kx : x component of k vector
+            % ky : y component of k vector
             %
-            % Note that the units of theta_xy*pi and theta_z*pi are radians.
-            % If theta_xy and theta_z are not specified, default values are set to pi/4.
+            %
+
 
             k0 = 2*pi / wavelength;
             if nargin < 5
-             theta_xy =pi/4;
-             theta_z = pi/4;
-            end
-            N_x = theta_xy; N_y = theta_z;
-            kx = (2*pi*N_x)/dimensions(1);
-            ky = (2*pi*N_y)/dimensions(2);
+             theta_xy =pi/4.5;
+             ky = pi/4;
+           end
+             pitch = [dimensions(1)/subdivs dimensions(2)/subdivs];
+             kx = (cos(theta_z)*cos(theta_xy)*k0);
+             ky = (cos(theta_z)*sin(theta_xy)*k0);
+             mx = round((kx*dimensions(1))/wavelength);
+             my = round((ky*dimensions(1))/wavelength);
+             kx = (2*pi*mx)/dimensions(1);
+             ky = (2*pi*my)/dimensions(1);
 
-             grad_x = (kx)*[dimensions(1)/(subdivs):dimensions(1)/(subdivs):dimensions(1)] ;
-             grad_y = (ky)*[dimensions(2)/(subdivs):dimensions(2)/(subdivs):dimensions(2)] ;
+             grad_x = (kx)*linspace(pitch(1),dimensions(1),subdivs) ;
+             grad_y = (ky)*linspace(pitch(2),dimensions(2),subdivs) ;
 
-             E_in = grad_x + grad_y' ;
+             E_in = grad_x + grad_y.' ;
              Eout = Field(exp(1i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
