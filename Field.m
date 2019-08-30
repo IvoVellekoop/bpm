@@ -82,9 +82,7 @@ classdef Field < SizedArray
             for s=1:Nslices
                 slice = n(:,:,s);
                 navg = mean2(slice);
-                if navg < 1
-                  imagesc(slice); drawnow();
-                end
+               
                 % propagate half way
                 kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
                 fE = fE .* exp(0.5i * dz * kz);
