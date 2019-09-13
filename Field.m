@@ -202,20 +202,20 @@ classdef Field < SizedArray
             %
             %
 
-            k0 = 2*pi / wavelength;
+            k0 = (2*pi)/wavelength;
             if nargin < 5
-             theta_xy =pi/4;
+             disp("Default angles set to pi/4 radians");
+             theta_xy = pi/4;
              theta_z = pi/4;
             end
 
             kx = cos(theta_z)*cos(theta_xy)*k0;
             ky = cos(theta_z)*sin(theta_xy)*k0;
 
-             grad_x = (kx)*linspace(0,dimensions(1),subdivs) ;
              grad_y = (ky)*linspace(0,dimensions(2),subdivs) ;
-
+             grad_x = (kx)*linspace(0,dimensions(1),subdivs) ;
              E_in = grad_x + grad_y.' ;
-             Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
+              Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
         function test()
