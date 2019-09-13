@@ -82,7 +82,7 @@ classdef Field < SizedArray
             for s=1:Nslices
                 slice = n(:,:,s);
                 navg = mean2(slice);
-
+               
                 % propagate half way
                 kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
                 fE = fE .* exp(0.5i * dz * kz);
@@ -112,7 +112,7 @@ classdef Field < SizedArray
           %  Back propagates the wave. It does the following:
           %     1) Change positive distance to negative distance.
           %     2) Reverse the order of scattering E_layers.
-          %     3) Uses propagate() to propagate the deltaE field with above inputs.
+          %     3) Uses propagate() to propagate the E field with above inputs.
           %  Effectively performs the adjoint of propagate().
 
           total_distance = -total_distance;
@@ -197,23 +197,24 @@ classdef Field < SizedArray
             %           scalar (for same pixels size in both dimension)
             % wavelength: wavelenght of the light
             % unit:     unit for dimensions and wavelength
-            % theta_x : incident angle in the x direction
-            % theta_y : incident angle in the y direction
+            % kx : x component of k vector
+            % ky : y component of k vector
             %
-            % Note that the units of theta_xy*pi and theta_z*pi are radians.
-            % If theta_xy and theta_z are not specified, default values are set to pi/4.
+            %
 
-            k0 = (2*pi)/wavelength;
+            k0 = 2*pi / wavelength;
             if nargin < 5
-             disp("Default angles set to pi/4 radians");
-             theta_xy = pi/4;
+             theta_xy =pi/4;
              theta_z = pi/4;
             end
 
-             grad_x = k0 *cos(theta_z)* cos(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
-             grad_y = k0 *cos(theta_z)* sin(theta_xy)* [0:dimensions(1)/(subdivs-1):dimensions(1)] ;
+            kx = cos(theta_z)*cos(theta_xy)*k0;
+            ky = cos(theta_z)*sin(theta_xy)*k0;
 
-             E_in = grad_x + grad_y' ;
+             grad_x = (kx)*linspace(0,dimensions(1),subdivs) ;
+             grad_y = (ky)*linspace(0,dimensions(2),subdivs) ;
+
+             E_in = grad_x + grad_y.' ;
              Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
