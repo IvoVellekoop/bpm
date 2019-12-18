@@ -26,7 +26,7 @@ classdef Field < SizedArray
             P = obj.data(:)' * obj.data(:);
             P = P * prod(obj.pitches); %take into account the surface area of each pixel (dx dy in the integral)
         end
-        function [Eout, Elayers] = propagate(obj, n, total_distance)
+        function [Eout, Elayers] = propagate(obj, n, total_distance, showplot)
 %% Propagate the field through refractive index map n
 %   Propagates the wave over a total distance total_distance through a
 %   structure with refractive index n.
@@ -48,8 +48,14 @@ classdef Field < SizedArray
 %   work when the step size is small with respect to divergence of the
 %   simulated field.
 %
+%   Note: the plot can be surpressed by passing false to the showplot argument. By
+%   default this is true.
             validateattributes(total_distance, {'single', 'double'}, {'scalar'});
             store_all = nargout > 1;
+            
+            if nargin < 4
+                showplot = 1;
+            end
 
             %% Create absorbing boundaries (todo: optimize & allow tuning)
             boundaries = tukeywin(size(obj, 1), 0.1) * tukeywin(size(obj, 2), 0.1).';
@@ -93,7 +99,9 @@ classdef Field < SizedArray
                 if store_all
                     Elayers(:, :, s) = gather(E.data);
                 end
-                imagesc(real(E.data)); drawnow();
+                if showplot
+                    imagesc(real(E.data)); drawnow();
+                end
                 fE = fft2(E);
 
                 % propagate next half
