@@ -6,7 +6,7 @@ classdef Field < SizedArray
     methods
         function obj = Field(E, pixel_size, lambda, unit)
         %% Construct a new field object
-        %   E             valuse of the actual field
+        %   E             values of the electric field
         %   pixel_size    size of the pixels in the field matrix (in 'unit's),
         %                 can be a vector to indicate rectangular pixels
         %   lambda        wavelength (in 'unit's)
@@ -212,18 +212,19 @@ classdef Field < SizedArray
 
             k0 = (2*pi)/wavelength;
             if nargin < 5
-             disp("Default angles set to pi/4 radians");
-             theta_xy = pi/4;
-             theta_z = pi/4;
+                disp("Default angles set to 0 radians"); % todo: remove warning
+                theta_xy = 0;
+                theta_z = 0;
             end
 
             kx = cos(theta_z)*cos(theta_xy)*k0;
             ky = cos(theta_z)*sin(theta_xy)*k0;
 
-             grad_y = (ky)*linspace(0,dimensions(2),subdivs) ;
-             grad_x = (kx)*linspace(0,dimensions(1),subdivs) ;
-             E_in = grad_x + grad_y.' ;
-              Eout = Field(exp(i*E_in), dimensions./subdivs, wavelength, unit);
+            grad_y = (ky)*linspace(0,dimensions(2),subdivs) ;
+            grad_x = (kx)*linspace(0,dimensions(1),subdivs) ;
+            %E_in = gpuArray(single(grad_x + grad_y.'));
+            E_in = grad_x + grad_y.';
+            Eout = Field(exp(1i*E_in), dimensions./subdivs, wavelength, unit);
             Eout = Eout / sqrt(power(Eout));
         end
         function test()
