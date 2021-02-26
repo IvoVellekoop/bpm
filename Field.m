@@ -56,7 +56,7 @@ classdef Field < SizedArray
             store_all = nargout > 1;
             
             if nargin < 4
-                showplot = 1;
+                showplot = false;
             end
 
             %% Create absorbing boundaries (todo: optimize & allow tuning)
@@ -82,9 +82,10 @@ classdef Field < SizedArray
             %
 
             % start with Fourier transformed field (apply boundaries)
-            fE = fft2(obj.data .* boundaries);
-            kx2 = obj.coordinates(2).^2;
-            ky2 = obj.coordinates(1).'.^2;
+            fE = fft2(obj .* boundaries);
+            kx2 = fE.coordinates(2).^2;
+            ky2 = fE.coordinates(1).'.^2;
+            fE = fE.data; %workaround for performance problem
             
             % propagate 1/2 step, apply scattering, propagate next 1/2 step
             for s=1:Nslices
@@ -100,10 +101,10 @@ classdef Field < SizedArray
                 E = E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries);
                 
                 if store_all
-                    Elayers(:, :, s) = gather(E.data);
+                    Elayers(:, :, s) = gather(E);
                 end
                 if showplot
-                    imagesc(real(E.data)); drawnow();
+                    imagesc(real(E)); drawnow();
                 end
                 fE = fft2(E);
 
@@ -115,7 +116,8 @@ classdef Field < SizedArray
                 Elayers(:,:,2) = gather(Eout.data);
             end
             if store_all
-                Elayers = SizedArray(Elayers, [obj.pitches abs(dz)], [obj.units, obj.units(1)]);
+                opt.EnableGPU = false;
+                Elayers = SizedArray(Elayers, [obj.pitches abs(dz)], [obj.units, obj.units(1)], opt);
             end
         end
 
@@ -236,7 +238,7 @@ classdef Field < SizedArray
             E = aperture(E, 'gaussian', D/2);
             figure(1); imagesc(angle(E)); %display phase of the incident light (converging wave)
             tic();
-            [E, E3D] = propagate(E, ones(1,1,32), 2*f); %propagate to the focus through air in 32 steps
+            [E, E3D] = propagate(E, ones(1,1,32), 2*f, true); %propagate to the focus through air in 32 steps
             toc();
             figure(2); imagesc(E3D(end/2, :, :)); %cross section in x-z plane
             figure(3); imagesc(E3D(:,:,end/2)); %cross section in focal plane (xy)
