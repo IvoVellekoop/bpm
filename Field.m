@@ -4,8 +4,8 @@ classdef Field < SizedArray
         k0      % 2 pi / lambda
     end
     methods
-        function obj = Field(E, pixel_size, lambda, unit)
-        %% Construct a new field object
+        function obj = Field(E, pixel_size, lambda, unit, varargin)
+        %% Construct a new field object from existing data
         %   E             values of the electric field
         %   pixel_size    size of the pixels in the field matrix (in 'unit's),
         %                 can be a vector to indicate rectangular pixels
@@ -16,16 +16,18 @@ classdef Field < SizedArray
         %
             validateattributes(E, {'single', 'double'}, {'2d'});
             validateattributes(lambda, {'single', 'double'}, {'scalar', 'positive'});
-            obj = obj@SizedArray(E, pixel_size, unit);
+            obj = obj@SizedArray(E, pixel_size, unit, varargin{:});
             obj.lambda = lambda;
             obj.k0  = 2 * pi / obj.lambda;
         end
+        
         function P = power(obj)
             %% Returns the total power in the field, per unit or per unit^2
             % This function simply integrates |E|.^2 over the full field
             P = obj.data(:)' * obj.data(:);
             P = P * prod(obj.pitches); %take into account the surface area of each pixel (dx dy in the integral)
         end
+        
         function [Eout, Elayers] = propagate(obj, n, total_distance, showplot)
 %% Propagate the field through refractive index map n
 %   Propagates the wave over a total distance total_distance through a
@@ -80,22 +82,23 @@ classdef Field < SizedArray
             %
 
             % start with Fourier transformed field (apply boundaries)
-            fE = fft2(obj .* boundaries);
-            kx = fE.coordinates(2);
-            ky = fE.coordinates(1);
-
+            fE = fft2(obj.data .* boundaries);
+            kx2 = obj.coordinates(2).^2;
+            ky2 = obj.coordinates(1).'.^2;
+            
             % propagate 1/2 step, apply scattering, propagate next 1/2 step
             for s=1:Nslices
-                slice = n(:,:,s);
+                slice = obj.convert_type(n(:,:,s));
                 navg = mean2(slice);
                
                 % propagate half way
-                kz = sqrt((navg * obj.k0)^2 - ky.^2.' - kx.^2);
-                fE = fE .* exp(0.5i * dz * kz);
-
+                ekz = exp(0.5i * dz * sqrt(complex((navg * obj.k0)^2 - ky2 - kx2)));
+                fE = fE .* ekz;
+                
                 % scatter
                 E = ifft2(fE);
                 E = E .* (exp(1.0i * dz * obj.k0 * (slice-navg)) .* boundaries);
+                
                 if store_all
                     Elayers(:, :, s) = gather(E.data);
                 end
@@ -105,12 +108,12 @@ classdef Field < SizedArray
                 fE = fft2(E);
 
                 % propagate next half
-                fE = fE .* exp(0.5i * dz * kz);
+                fE = fE .* ekz;
             end
-            Eout = ifft2(fE);
+            Eout = obj.with_data(ifft2(fE));
             if Nslices ==1
-             Elayers(:,:,2) = gather(Eout.data);
-             end
+                Elayers(:,:,2) = gather(Eout.data);
+            end
             if store_all
                 Elayers = SizedArray(Elayers, [obj.pitches abs(dz)], [obj.units, obj.units(1)]);
             end
@@ -122,7 +125,7 @@ classdef Field < SizedArray
           %     2) Reverse the order of scattering E_layers.
           %     3) Uses propagate() to propagate the E field with above inputs.
           %  Effectively performs the adjoint of propagate().
-
+        warning("untested, please remove warning if this function works")
           total_distance = -total_distance;
 
           n_reverse = flip(n,3);
@@ -130,8 +133,20 @@ classdef Field < SizedArray
           [E_out,E_layers] = propagate(E,n_reverse,total_distance);
 
 
-           end
+        end
 
+        function Eout = tilt(obj, kx, ky)
+            %% Applies a tilt kx,ky to the field
+            % This function multiplies the field by e^(kx x + ky y)
+            % kx and ky are given in radians/unit (with the unit specified
+            % in the constructor, typically micrometers)
+            % If you need to tilt the wavefront by a specified angle,
+            % for example in the x-direction use the equation 
+            % kx = k0 sin(alpha)
+            %
+            Eout = obj.* exp(1.0i * kx * obj.coordinates(1).' + ky * obj.coordinates(2));        
+        end
+        
         function Eout = lens(obj, focal_length)
             %% Applies a lens function to the field
             % When starting with a plane wave, the resulting wave is
@@ -146,6 +161,7 @@ classdef Field < SizedArray
             end
             Eout = obj .* exp(-1.0i * obj.k0 * extra_path);
         end
+        
         function Eout = aperture(obj, type, r, center)
             %% Applies an intensity mask to the field, mimicking e. g. a circular apertur
             % obj       field to apply the intensity mask to
@@ -174,6 +190,8 @@ classdef Field < SizedArray
         end
 
         function Lens = make_lens(obj,focal_length,dz)
+            warning("untested, please remove warning if this function works")
+
             %% This procedure produces a GRIN lens with the focal_length specified in focal_length.
             %% The output, Lens, is the gradient refractive index map required to
             %% form focus as focal_length specified in a meterial with thickness dz
@@ -193,7 +211,7 @@ classdef Field < SizedArray
     end
 
     methods (Static)
-        function Eout = plane(dimensions, subdivs, wavelength, unit, theta_xy, theta_z)
+        function Eout = plane(dimensions, subdivs, wavelength, unit, varargin)
             %% Generates a plane wave
             %
             % The amplitude of the plane wave is normalized to have unit
@@ -202,30 +220,12 @@ classdef Field < SizedArray
             %
             % dimensions: size of field (in units). Can be 1-D or 2-D
             % subdivs:  number of subdivisions in each dimension. Can be
-            %           scalar (for same pixels size in both dimension)
+            %           scalar (in which case it is the same for both dimensions)
             % wavelength: wavelenght of the light
             % unit:     unit for dimensions and wavelength
-            % kx : x component of k vector
-            % ky : y component of k vector
-            %
-            %
-
-            k0 = (2*pi)/wavelength;
-            if nargin < 5
-                disp("Default angles set to 0 radians"); % todo: remove warning
-                theta_xy = 0;
-                theta_z = 0;
-            end
-
-            kx = cos(theta_z)*cos(theta_xy)*k0;
-            ky = cos(theta_z)*sin(theta_xy)*k0;
-
-            grad_y = (ky)*linspace(0,dimensions(2),subdivs) ;
-            grad_x = (kx)*linspace(0,dimensions(1),subdivs) ;
-            %E_in = gpuArray(single(grad_x + grad_y.'));
-            E_in = grad_x + grad_y.';
-            Eout = Field(exp(1i*E_in), dimensions./subdivs, wavelength, unit);
-            Eout = Eout / sqrt(power(Eout));
+            % options, see Field constructor
+            Eout = Field(ones(subdivs), dimensions./subdivs, wavelength, unit, varargin{:});
+            Eout = Eout/sqrt(power(Eout));
         end
         function test()
             f = 10000; %um

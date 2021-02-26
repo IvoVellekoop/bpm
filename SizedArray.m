@@ -15,7 +15,7 @@ classdef SizedArray
     end
     
     methods
-        function obj = SizedArray(data, pitches, units)
+        function obj = SizedArray(data, pitches, units, varargin)
             %% Construct a new sized array object for the given data
             % 
             % SizedArray(data, pitches, units)
@@ -37,10 +37,17 @@ classdef SizedArray
             if nargin == 0 %required 'no argument constructor' returns trivial default object
                 return
             end
+            opts = set_defaults(struct('Precision', "single",'EnableGPU', true), varargin{:});
             
             dims = ndims(data);
             obj.is_fft = false;
-            obj.data = data;
+            if opts.Precision == "single"
+                obj.data = single(data);
+            elseif opts.Precision == "double" 
+                obj.data = double(data);
+            else
+                error('Invalid specifier for precision, shoulde be "single" or "double"');
+            end
             
             % automatically repeat pitch if only one is given
             if isscalar(pitches)
@@ -67,16 +74,40 @@ classdef SizedArray
             % add default labels (only supports up to 4 dims at the moment)            
             default_labels = {'y', 'x', 'z', 't'};
             obj.labels = default_labels(1:dims);
+            
+            % put data and coordinate vectors on gpu if we have one
+            % todo: add option to disable gpu
+            if opts.EnableGPU && gpuDeviceCount > 0
+                obj.data = gpuArray(obj.data);
+                obj.pitches = gpuArray(obj.pitches);
+            end
         end
-        
+
         function array = with_data(obj, data)
             %% returns an object with the same properties (pitch, units) as template object 'obj'
-            % but with the data set to 'data'
+            % but with the data set to 'data'.
             %if size(data) ~= size(obj.data)
             %    error('Data must be the same size as the data array in the template object');
             %end
             array = obj;
             array.data = data;
+        end
+        function data = convert_type(obj, data)
+            %% Converts 'data' so that it matches the precision (single/double) and type (gpuArray or not)
+            % of the current object
+            if isgpuarray(obj.data)
+                if isa(obj.data, 'single')
+                    data = gpuArray(single(data));
+                else
+                    data = double(gpuArray(data));
+                end
+            else
+                if isa(obj.data, 'single')
+                    data = single(data);
+                else
+                    data = gpuArray(data);
+                end
+            end
         end
         
         function coords = coordinates(obj, dim)
