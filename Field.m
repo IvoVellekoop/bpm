@@ -146,7 +146,7 @@ classdef Field < SizedArray
             % for example in the x-direction use the equation 
             % kx = k0 sin(alpha)
             %
-            Eout = obj.* exp(1.0i * kx * obj.coordinates(1).' + ky * obj.coordinates(2));        
+            Eout = obj.* exp(1.0i * kx * obj.coordinates(2) + 1.0i * ky * obj.coordinates(1).');        
         end
         
         function Eout = lens(obj, focal_length)
