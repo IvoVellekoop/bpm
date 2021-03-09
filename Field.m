@@ -240,8 +240,8 @@ classdef Field < SizedArray
             tic();
             [E, E3D] = propagate(E, ones(1,1,32), 2*f, true); %propagate to the focus through air in 32 steps
             toc();
-            figure(2); imagesc(E3D(end/2, :, :)); %cross section in x-z plane
-            figure(3); imagesc(E3D(:,:,end/2)); %cross section in focal plane (xy)
+            figure(2); imagesc(E3D(end/2 + 1, :, :)); %cross section in x-z plane
+            figure(3); imagesc(E3D(:,:,end/2 + 1)); %cross section in focal plane (xy)
         end
     end
 end
